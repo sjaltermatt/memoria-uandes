@@ -1,0 +1,870 @@
+#-----------------------------------------Memoria J.G.V.C----------------------------------------------#
+####### Instalar los paquetes la primera vez que se abre el script, luego correr las librerias ###
+# Para un mejor desempe??o del codigo se recomienda usar R 3.3.3 y no la ultima version.
+
+#install.packages("readxl") # Paquete usado para la conexion de R y Excel
+#install.packages("Amelia") # Contiene utilidades para el analisis de los VP/I
+#install.packages("Rcpp") # Complemento del paquete Amelia
+#install.packages("ggplot2") # Paquete para la utilizacion graficos
+#install.packages("VIM")  # Paquete para el estudio y visualizacion de Valores Perdidos
+#install.packages("cluster") # Paquete con herramientas/metodos de clustering
+#install.packages("gplots") #Graficos para la obtenci??n del rendimiento del modelo
+#install.packages("ROCR") # Indices para medir el rendimiento del modelo
+#install.packages("lattice") #Complemento de paquete caret
+#install.packages("caret") # Biblioteca de metodos de LA y herramientas de trabajo estadistico
+#install.packages("pROC") # Paquete de medidas de comparaci??n de modelos 
+#install.packages("mice") # Paquete con metodos para la sustituci??n de datos 
+#install.packages("corrplot") #Implementos estadisticos relacionados con correlacion de datos y display
+#install.packages("MASS") # Complementos para los paquetes que traen los metodos de clasificacion
+
+library("ggplot2")
+library("VIM")
+library("readxl")
+library("Rcpp")
+library("Amelia")
+library("cluster")
+library(e1071)
+library("gplots")
+library("ROCR")
+library("lattice")
+library(caret)
+library(pROC)
+library("mice")
+library(corrplot)
+library(MASS)
+
+#Obtener la conexion de la base de datos y direccion donde esta el Excel, aqu?? se leen los datos a usar
+getwd()
+setwd("/Users/josevarela") # Cargar los datos antes de correr el codigo
+Datos_Maestro <- read_excel("~/Memoria/Datos Memoria.xlsx", sheet = "Maestro")
+Datos_Programacion <- read_excel("~/Memoria/Datos Memoria.xlsx", sheet = "Programacion")
+
+#AED (Analisis Exploratorio de Datos)
+summary(Datos_Maestro)
+summary(Datos_Programacion)
+
+#Conteo de los valores perdidos y/o faltantes
+na_count<-sapply(Datos_Maestro,function(y)sum(length(which(is.na(y)))))
+print(na_count<-data.frame(na_count))
+na_count1<-sapply(Datos_Programacion,function(y)sum(length(which(is.na(y)))))
+print(na_count<-data.frame(na_count1))
+missmap(Datos_Maestro)
+missmap(Datos_Programacion)
+aggr(Datos_Maestro[3:10], numbers = T)
+aggr(Datos_Programacion[28:37],numbers=T)
+aggr(Datos_Programacion[1:27],numbers= T)
+
+#Analisis de Correlacciones 
+#Correlaciones entre variables LAB y E del periodo 1 hasta el 5
+par(mfrow=c(1,1))
+Datos_Programacion<-na.omit(Datos_Programacion)
+vardatos15<-Datos_Programacion[,c(4:6,10:12,16:18,22:24,28:30)]
+CorrMat3<-cor(vardatos15)
+corrplot(CorrMat3)
+corrplot.mixed(CorrMat3)
+par(mfrow=c(1,1)) #Para graficar las correlaciones, correr esta linea primero
+
+#Correlaciones entre variables PSU
+Datos_Maestro<-na.omit(Datos_Maestro)
+vardatos<-Datos_Maestro[,c(3:11)]
+CorrMat3<-cor(vardatos)
+corrplot(CorrMat3)
+corrplot.mixed(CorrMat3)
+par(mfrow=c(1,1)) #Para graficar las correlaciones, correr esta linea primero
+vardatos2<-Datos_Maestro[,c(3:6,9)]
+CorrMat3<-cor(vardatos2)
+corrplot(CorrMat3)
+corrplot.mixed(CorrMat3)
+
+#Clustering
+
+#Metodo de Imputaci??n Multiple 
+
+clusterdata <- read_excel("~/Memoria/Datos Memoria.xlsx", sheet = "Datos Cluster")
+clusterdata1<-clusterdata[,c(3:22,24)]
+summary(clusterdata1)
+md.pattern(clusterdata1)
+clusterdataimp <- mice(clusterdata1, m=5, maxit = 50, method = 'pmm', seed = 500)
+summary(clusterdataimp)
+clusterdatacomplete <- complete(clusterdataimp,3)
+md.pattern(clusterdatacomplete)
+attach(clusterdatacomplete)
+clusterdatacomplete1<-data.frame(LAB11,LAB21,LAB12,LAB22,LAB13,LAB23,LAB14,LAB24,NM1,NM2,NM3,NM4,NREPM1,NREPM2,NREPM3,NREPM4,PSUL,PSUM,PSUC,PSUR,as.factor(TCOL),as.factor(clusterdata$SEX))
+str(clusterdatacomplete1)
+cl2<-cbind(clusterdatacomplete1[,-c(9:16,21,22)],clusterdata$EXM1,clusterdata$EXM2,clusterdata$EXM3,clusterdata$EXM4)
+
+
+#k-medias
+km<-kmeans(clusterdatacomplete1,4)
+km
+
+#Regla de Codo para saber numero indicado de cluster
+wss <- (nrow(clusterdatacomplete1)-1)*sum(apply(clusterdatacomplete1,2,var))
+for (i in 2:10) wss[i] <- sum(kmeans(clusterdatacomplete1,centers=i)$withinss)
+plot(1:10, wss, type="b", xlab="# Clusters",
+     ylab="Within groups SS")
+
+# Cross-table entre los resultados del clustering y datos de Excel
+Periodo15Rut<-data.frame(clusterdata$RUT)
+c1<-Periodo15Rut[km$cluster==1,]
+c2<-Periodo15Rut[km$cluster==2,]
+c3<-Periodo15Rut[km$cluster==3,]
+c4<-Periodo15Rut[km$cluster==4,]
+
+
+write.table(c1,file="Cluster1.csv",row.names = FALSE)
+write.table(c2,file="Cluster2.csv",row.names = FALSE)
+write.table(c3,file="Cluster3.csv",row.names = FALSE)
+write.table(c4,file="Cluster4.csv",row.names = FALSE)
+
+#AJ
+#Normalizaci??n para usar AJ
+lab11n<-(cl2$LAB11-mean(cl2$LAB11))/sd(cl2$LAB11)
+lab21n<-(cl2$LAB21-mean(cl2$LAB21))/sd(cl2$LAB21)
+lab12n<-(cl2$LAB12-mean(cl2$LAB12))/sd(cl2$LAB12)
+lab22n<-(cl2$LAB22-mean(cl2$LAB22))/sd(cl2$LAB22)
+lab13n<-(cl2$LAB13-mean(cl2$LAB13))/sd(cl2$LAB13)
+lab23n<-(cl2$LAB23-mean(cl2$LAB23))/sd(cl2$LAB23)
+lab14n<-(cl2$LAB14-mean(cl2$LAB14))/sd(cl2$LAB14)
+lab24n<-(cl2$LAB24-mean(cl2$LAB24))/sd(cl2$LAB24)
+psuln<-(cl2$PSUL-mean(cl2$PSUL))/sd(cl2$PSUL)
+psumn<-(cl2$PSUM-mean(cl2$PSUM))/sd(cl2$PSUM)
+psucn<-(cl2$PSUC-mean(cl2$PSUC))/sd(cl2$PSUC)
+psurn<-(cl2$PSUR-mean(cl2$PSUR))/sd(cl2$PSUR)
+exm1n<-(cl2$`clusterdata$EXM1`-mean(cl2$`clusterdata$EXM1`))/sd(cl2$`clusterdata$EXM1`)
+exm2n<-(cl2$`clusterdata$EXM2`-mean(cl2$`clusterdata$EXM2`))/sd(cl2$`clusterdata$EXM2`)
+exm3n<-(cl2$`clusterdata$EXM3`-mean(cl2$`clusterdata$EXM3`))/sd(cl2$`clusterdata$EXM3`)
+exm4n<-(cl2$`clusterdata$EXM4`-mean(cl2$`clusterdata$EXM4`))/sd(cl2$`clusterdata$EXM4`)
+dnorm<-data.frame(lab11n,lab21n,lab12n,lab22n,lab13n,lab23n,lab14n,lab24n,psuln,psumn,psucn,psurn,exm1n,exm2n,exm3n,exm4n)
+d<-dist(dnorm)
+heatmap(as.matrix(dnorm))
+hc<-hclust(d)
+plot(hc,main='Dendrograma para 228 Alumnos')
+
+#Definici??n de cortes en el AJ-A
+ghc<-cutree(hc,k=3:5)
+k4<-rect.hclust(hc,k=4,border="blue")
+k3<-rect.hclust(hc,k=3,border="red")
+k5<-rect.hclust(hc,k=5,border="green")
+groups = cutree(hc,8.6)
+counts = sapply(3:5,function(ncl)table(cutree(hc,ncl)))
+names(counts) = 3:5
+counts
+#Resumen de los k grupos seg??n la media de las variables
+groups4 = cutree(hc,4)
+#Media con valores estandarizados
+vn=aggregate(dnorm,list(groups4),mean)
+vn
+#Resumen con valores normales
+vn1=aggregate(cl2,list(groups4),mean)
+vn1
+data.frame(Cluster=vn1[,1],Freq=as.vector(table(groups4)),vn1[,-1])
+
+
+#Modelo A
+notes <- read_excel("~/Memoria/Datos Memoria.xlsx", sheet = "Datos Modelo A")
+attach(notes)
+notes1<-data.frame(NMREP,PSUL,PSUR,as.factor(TCOL),APRC1)
+str(notes1)
+
+#CV Using 10-fold validation
+ctrl<-trainControl(method="cv",number= 10, summaryFunction=twoClassSummary, classProbs = TRUE) 
+
+#SVM
+SVM_fitL<-train(APRC1 ~., data = notes1, trControl = ctrl ,method = "svmLinear")
+SVM_fitL
+SVM_fitR<-train(APRC1 ~., data = notes1, trControl = ctrl, method = "svmRadial")
+SVM_fitR
+#LR
+logisticmodel<-train(APRC1 ~., data = notes1, trControl = ctrl ,method = "glm")
+logisticmodel
+#NB
+nbmodel<-train(APRC1 ~., data = notes1, trControl = ctrl ,method = "nb")
+nbmodel
+
+#Prediccion de Test
+notes2 <- notes[,c(1:6)]
+attach(notes2)
+notes2<-data.frame(RUT,NMREP,PSUL,PSUR,as.factor(TCOL))
+str(notes2)
+y_pred<-predict(SVM_fitR, newdata=notes2,type='raw')
+y_pred
+tblypred<-table( notes1$APRC1,y_pred)
+prsc<-sum(tblypred[row(tblypred)==col(tblypred)])/sum(tblypred)
+print(paste("Accuracy: ",round(prsc,3), "%"))
+
+#Escritura en Excel
+TestPred <-(data.matrix(y_pred))
+TestPred2 <-(data.matrix(notes2$RUT,y_pred))
+TestPredF<-cbind(TestPred2,TestPred)
+
+#Escritura de datos en archivos excel
+write.table(TestPredF,file="TestResults.csv",row.names = FALSE)
+write.table(notes2,file="TestSet.csv",row.names = FALSE)
+
+
+#Modelo B
+
+notes<- read_excel("~/Memoria/Datos Memoria.xlsx", 
+              sheet = "Datos Modelo B ")
+attach(notes)
+notes1<-data.frame(NMREP3,PSUL,PSUR,as.factor(TCOL),APRC1)
+str(notes1)
+
+#CV Using 10-fold validation
+ctrl<-trainControl(method="cv",number= 10, summaryFunction=twoClassSummary, classProbs = TRUE) 
+
+#SVM
+SVM_fitL<-train(APRC1 ~., data = notes1, trControl = ctrl ,method = "svmLinear")
+SVM_fitL
+SVM_fitR<-train(APRC1 ~., data = notes1, trControl = ctrl, method = "svmRadial")
+SVM_fitR
+#LR
+logisticmodel<-train(APRC1 ~., data = notes1, trControl = ctrl ,method = "glm")
+logisticmodel
+#NB
+nbmodel<-train(APRC1 ~., data = notes1, trControl = ctrl ,method = "nb")
+nbmodel
+
+#Prediccion de Test
+notes2 <- notes[,c(1:6)]
+attach(notes2)
+notes2<-data.frame(RUT,NMREP3,PSUL,PSUR,as.factor(TCOL))
+str(notes2)
+y_pred<-predict(SVM_fitR, newdata=notes2,type='raw')
+y_pred
+tblypred<-table( notes1$APRC1,y_pred)
+prsc<-sum(tblypred[row(tblypred)==col(tblypred)])/sum(tblypred)
+print(paste("Accuracy: ",round(prsc,3), "%"))
+
+#Escritura en Excel
+TestPred <-(data.matrix(y_pred))
+TestPred2 <-(data.matrix(notes2$RUT,y_pred))
+TestPredF<-cbind(TestPred2,TestPred)
+
+#Escritura de datos en archivos excel
+write.table(TestPredF,file="TestResults.csv",row.names = FALSE)
+write.table(notes2,file="TestSet.csv",row.names = FALSE)
+
+
+
+#Modelo C
+notes <- read_excel("~/Memoria/Datos Memoria.xlsx", sheet = "Datos Modelo C")
+attach(notes)
+notes1<-data.frame(PSUL,PSUR,as.factor(TCOL),APRC1)
+str(notes1)
+
+#CV Using 10-fold validation
+ctrl<-trainControl(method="cv",number= 10, summaryFunction=twoClassSummary, classProbs = TRUE) 
+
+#SVM
+SVM_fitL<-train(APRC1 ~., data = notes1, trControl = ctrl ,method = "svmLinear")
+SVM_fitL
+SVM_fitR<-train(APRC1 ~., data = notes1, trControl = ctrl, method = "svmRadial")
+SVM_fitR
+#LR
+logisticmodel<-train(APRC1 ~., data = notes1, trControl = ctrl ,method = "glm")
+logisticmodel
+#NB
+nbmodel<-train(APRC1 ~., data = notes1, trControl = ctrl ,method = "nb")
+nbmodel
+
+#Prediccion de Test
+notes2 <- notes[,c(1:6)]
+attach(notes2)
+notes2<-data.frame(RUT,PSUL,PSUR,as.factor(TCOL))
+str(notes2)
+y_pred<-predict(nbmodel, newdata=notes2,type='raw')
+y_pred
+tblypred<-table( notes1$APRC1,y_pred)
+prsc<-sum(tblypred[row(tblypred)==col(tblypred)])/sum(tblypred)
+print(paste("Accuracy: ",round(prsc,3), "%"))
+
+#Escritura en Excel
+TestPred <-(data.matrix(y_pred))
+TestPred2 <-(data.matrix(notes2$RUT,y_pred))
+TestPredF<-cbind(TestPred2,TestPred)
+
+#Escritura de datos en archivos excel
+write.table(TestPredF,file="TestResults.csv",row.names = FALSE)
+write.table(notes2,file="TestSet.csv",row.names = FALSE)
+
+#Modelo C 2015
+notes <- read_excel("~/Memoria/Datos Memoria.xlsx", sheet = "Datos 2015")
+attach(notes)
+notes1<-data.frame(PSUL,PSUR,as.factor(TCOL),APRC1)
+str(notes1)
+
+#CV Using 10-fold validation
+ctrl<-trainControl(method="cv",number= 10, summaryFunction=twoClassSummary, classProbs = TRUE) 
+
+#SVM
+SVM_fitL<-train(APRC1 ~., data = notes1, trControl = ctrl ,method = "svmLinear")
+SVM_fitL
+SVM_fitR<-train(APRC1 ~., data = notes1, trControl = ctrl, method = "svmRadial")
+SVM_fitR
+#LR
+logisticmodel<-train(APRC1 ~., data = notes1, trControl = ctrl ,method = "glm")
+logisticmodel
+#NB
+nbmodel<-train(APRC1 ~., data = notes1, trControl = ctrl ,method = "nb")
+nbmodel
+
+#Prediccion de Test
+notes2 <- notes[,c(1:6)]
+attach(notes2)
+notes2<-data.frame(PSUL,PSUR,as.factor(TCOL))
+str(notes2)
+y_pred<-predict(logisticmodel , newdata=notes2,type='raw')
+y_pred
+tblypred<-table( notes1$APRC1,y_pred)
+prsc<-sum(tblypred[row(tblypred)==col(tblypred)])/sum(tblypred)
+print(paste("Accuracy: ",round(prsc,3), "%"))
+
+#Escritura en Excel
+TestPred <-(data.matrix(y_pred))
+TestPred2 <-(data.matrix(notes2$RUT,y_pred))
+TestPredF<-cbind(TestPred2,TestPred)
+
+#Escritura de datos en archivos excel
+write.table(TestPredF,file="TestResults.csv",row.names = FALSE)
+write.table(notes2,file="TestSet.csv",row.names = FALSE)
+
+#Modelo C 2016
+notes <- read_excel("~/Memoria/Datos Memoria.xlsx", sheet = "Datos 2016")
+attach(notes)
+notes1<-data.frame(PSUL,PSUR,as.factor(TCOL),APRC1)
+str(notes1)
+
+#CV Using 10-fold validation
+ctrl<-trainControl(method="cv",number= 10, summaryFunction=twoClassSummary, classProbs = TRUE) 
+
+#SVM
+SVM_fitL<-train(APRC1 ~., data = notes1, trControl = ctrl ,method = "svmLinear")
+SVM_fitL
+SVM_fitR<-train(APRC1 ~., data = notes1, trControl = ctrl, method = "svmRadial")
+SVM_fitR
+#LR
+logisticmodel<-train(APRC1 ~., data = notes1, trControl = ctrl ,method = "glm")
+logisticmodel
+#NB
+nbmodel<-train(APRC1 ~., data = notes1, trControl = ctrl ,method = "nb")
+nbmodel
+
+#Prediccion de Test
+notes2 <- notes[,c(1:6)]
+attach(notes2)
+notes2<-data.frame(PSUL,PSUR,as.factor(TCOL))
+str(notes2)
+y_pred<-predict(SVM_fitL , newdata=notes2,type='raw')
+y_pred
+tblypred<-table( notes1$APRC1,y_pred)
+prsc<-sum(tblypred[row(tblypred)==col(tblypred)])/sum(tblypred)
+print(paste("Accuracy: ",round(prsc,3), "%"))
+
+#Escritura en Excel
+TestPred <-(data.matrix(y_pred))
+TestPred2 <-(data.matrix(notes2$RUT,y_pred))
+TestPredF<-cbind(TestPred2,TestPred)
+
+#Escritura de datos en archivos excel
+write.table(TestPredF,file="TestResults.csv",row.names = FALSE)
+write.table(notes2,file="TestSet.csv",row.names = FALSE)
+
+
+#Modelos de Rendimiento Academico por Periodo usando PDP-2017
+
+
+#ModP1
+datos_memoria <- read_excel("~/Memoria/Datos Memoria.xlsx", sheet = "ModP1-P5")
+attach(datos_memoria)
+
+#Inutilidad de las Variables 
+progr<-datos_memoria[,c(2:5)]
+sapply(progr,sd)
+
+#Redundancia de las Variables (solo las predictoras)
+CorrMat<-cor(progr)
+corrplot.mixed(CorrMat)
+
+
+#Remover variables irrelevantes: test Chi2, decidir sobre redundantes (predictoras con dependiente).
+bins<-5
+cutpoints<-quantile(progr$LAB11,(0:bins)/bins)
+Lab11B<-cut(progr$LAB11,cutpoints,include.lowest=TRUE)
+Lab21B<-cut(progr$LAB21,cutpoints,include.lowest=TRUE)
+tbl = table(Lab11B,datos_memoria$APPN) 
+tbl1 = table(Lab21B,datos_memoria$APPN) 
+chisq.test(tbl) 
+chisq.test(tbl1)
+
+cutpoints2<-quantile(progr$PSUL,(0:bins)/bins)
+cutpoints2
+PSULB<-cut(progr$PSUL,cutpoints2,include.lowest=TRUE)
+PSURB<-cut(progr$PSUR,cutpoints2,include.lowest=TRUE)
+tbl2 = table(PSULB,datos_memoria$APPN) 
+tbl3 = table(PSURB,datos_memoria$APPN) 
+chisq.test(tbl2)
+chisq.test(tbl3)
+
+#Para que funcione se asigna Y=0 (Aprobado) y la Y de string = "Yes" e Y=1 (Reprobado), con N="No"
+#No es necesario correr este codigo si las variables ya estan en Y y N.
+datos_memoria$APPN[datos_memoria$APPN==0] <- "Y"
+datos_memoria$APPN[datos_memoria$APPN==1] <- "N"
+data_set1<-data.frame(LAB11, LAB21, PSUL,PSUR ,APPN)
+str(data_set1)
+#CV Using 10-fold validation
+ctrl<-trainControl(method="cv",number= 10, summaryFunction=twoClassSummary, classProbs = TRUE) 
+
+#Regresion L
+logreg_fit<-train(APPN ~., data = data_set1, method="glm", family="binomial", trControl = ctrl, metric="ROC")
+summary(logreg_fit)
+logreg_fit
+logreg_fit2<-train(APPN ~ LAB11+LAB21, data = data_set1, method="glm", family="binomial", trControl = ctrl, metric="ROC")
+summary(logreg_fit2)
+probofpass<-data.frame(logreg_fit2$finalModel$fitted.values) #Probabilidades de que el alumno apruebe
+#Residuos de Estimaciones
+plot(logreg_fit2$finalModel$residuals)
+#Analisis de Probabilidades de los Coeficientes
+logit2prob <- function(logit){
+  ratio1 <- exp(logit) 
+  return(ratio1)
+}
+coefi<-logreg_fit$finalModel$coefficients
+logit2prob(coefi)
+
+
+#SVM
+SVM_fitL<-train(APPN ~ ., data = data_set1, trControl = ctrl ,method = "svmLinear")
+SVM_fitL
+SVM_fitL2<-train(APPN ~ LAB11+LAB21, data = data_set1, trControl = ctrl ,method = "svmLinear")
+SVM_fitL2
+
+SVM_fitR<-train(APPN ~ ., data = data_set1, trControl = ctrl, method = "svmRadial")
+SVM_fitR
+SVM_fitR2<-train(APPN ~ LAB11+LAB21, data = data_set1, trControl = ctrl, method = "svmRadial")
+SVM_fitR2
+plot(SVM_fitR)
+
+#NB
+nb_fit<-train(APPN ~ ., data = data_set1, method = "nb", trControl = ctrl, metric="ROC")
+nb_fit
+nb_fit2<-train(APPN ~ LAB11+LAB21, data = data_set1, method = "nb", trControl = ctrl, metric="ROC")
+nb_fit2
+
+#Graficar Resultados
+results <- resamples(list(LOGIT=logreg_fit, LOGIT2=logreg_fit2,NB=nb_fit, NB2=nb_fit2,SVML=SVM_fitL, SVML2=SVM_fitL2,SVMR=SVM_fitR,SVMR2=SVM_fitR2))
+summary(results)
+#Boxplots con resultados
+bwplot(results)
+#Dot plots de resultados con 95% Confianza
+dotplot(results)
+
+#Prediccion
+Libro1 <- read_excel("~/Memoria/Datos Memoria.xlsx", sheet = "ModP1-P5")
+attach(Libro1)
+#Si se desea obtener la predicci??n nueva o comparar lo estimado con lo real, el m??todo por defecto es LG restringido, se puede aplicar cualquieray_pred<-predict(logreg_fit2, newdata=Libro1, type="raw")
+y_pred
+datos_memoria$APPN[datos_memoria$APPN==0] <- "Y"
+datos_memoria$APPN[datos_memoria$APPN==1] <- "N"
+tblypred<-table(datos_memoria$APPN,y_pred)
+tblypred
+sum(tblypred[row(tblypred)==col(tblypred)])/sum(tblypred)
+#Si se desea la probabilidad de aprobacion/reprobacion de cada alumno
+y_pred<-predict(logreg_fit2, newdata=Libro1, type="prob")
+y_pred
+
+
+#ModP2
+Datos_Memoria <- read_excel("~/Memoria/Datos Memoria.xlsx", sheet = "ModP1-P5")
+attach(Datos_Memoria)
+
+#Inutilidad de las Variables 
+progr<-Datos_Memoria[,c(2:5,7:9,10)]
+progr1<-Datos_Memoria[,c(2:5,8:9,10)]
+sapply(progr1,sd)
+
+#Redundancia de las Variables (solo las predictoras)
+CorrMat<-cor(progr1)
+corrplot.mixed(CorrMat)
+
+#Remover variables irrelevantes: test Chi2, decidir sobre redundantes (predictoras con dependiente).
+bins<-5
+cutpoints<-quantile(progr1$LAB11,(0:bins)/bins)
+Lab12B<-cut(progr$LAB12,cutpoints,include.lowest=TRUE)
+Lab22B<-cut(progr$LAB22,cutpoints,include.lowest=TRUE)
+tbl = table(Lab12B,Datos_Memoria$APPN2) 
+tbl1 = table(Lab22B,Datos_Memoria$APPN2) 
+chisq.test(tbl) 
+chisq.test(tbl1)
+tbl2 = table(progr1$NVM1P2,Datos_Memoria$APPN2) 
+chisq.test(tbl2)
+
+
+#Para que funcione se asigna Y=0 (Aprobado) e N=1 (Reprobado)
+data_set$APP1[data_set$APP1==0] <- "Y"
+data_set$APP1[data_set$APP1==1] <- "N"
+data_set1<-data.frame(LAB11, LAB21, PSUL,PSUR ,as.factor(APPN), LAB12,LAB22,as.numeric(NVM1P2),APPN2)
+attach(data_set1)
+str(data_set1)
+
+#CV Using 10-fold validation
+ctrl<-trainControl(method="cv",number= 10, summaryFunction=twoClassSummary, classProbs = TRUE) 
+
+#Regresion L
+logreg_fit<-train(APPN2 ~., data = data_set1, method="glm", family="binomial", trControl = ctrl, metric="ROC")
+logreg_fit
+summary(logreg_fit)
+logreg_fit2<-train(APPN2 ~ LAB21+LAB12+LAB22, data = data_set1, method="glm", family="binomial", trControl = ctrl, metric="ROC")
+logreg_fit2
+summary(logreg_fit2)
+
+#Residuos de Estimaciones
+plot(logreg_fit2$finalModel$residuals)
+#Analisis de Probabilidades de los Coeficientes
+logit2prob <- function(logit){
+  ratio1 <- exp(logit) 
+  return(ratio1)
+}
+coefi<-logreg_fit$finalModel$coefficients
+logit2prob(coefi)
+
+#SVM
+SVM_fitL<-train(APPN2 ~ ., data = data_set1, trControl = ctrl ,method = "svmLinear")
+SVM_fitL
+SVM_fitL2<-train(APPN2 ~ LAB21+LAB12+LAB22, data = data_set1, trControl = ctrl ,method = "svmLinear")
+SVM_fitL2
+SVM_fitR<-train(APPN2 ~ ., data = data_set1, trControl = ctrl, method = "svmRadial")
+SVM_fitR
+SVM_fitR2<-train(APPN2 ~ LAB21+LAB12+LAB22, data = data_set1, trControl = ctrl, method = "svmRadial")
+SVM_fitR2
+
+
+#NB
+nb_fit<-train(APPN2 ~ ., data = data_set1, method = "nb", trControl = ctrl, metric="ROC")
+nb_fit
+nb_fit2<-train(APPN2 ~ LAB21+LAB12+LAB22, data = data_set1, method = "nb", trControl = ctrl, metric="ROC")
+nb_fit2
+
+#Graficar Resultados
+results <- resamples(list(LOGIT=logreg_fit, LOGIT2=logreg_fit2,NB=nb_fit, NB2=nb_fit2,SVML=SVM_fitL, SVML2=SVM_fitL2,SVMR=SVM_fitR,SVMR2=SVM_fitR2))
+summary(results)
+#Boxplots con resultados
+bwplot(results)
+#Dot plots de resultados con 95% Confianza
+dotplot(results)
+
+#Prediccion
+Libro1 <- read_excel("~/Memoria/Datos Memoria.xlsx", sheet = "ModP1-P5")
+attach(Libro1)
+#Si se desea obtener la predicci??n nueva o comparar lo estimado con lo real, el m??todo por defecto es LG restringido, se puede aplicar cualquieray_pred<-predict(logreg_fit2, newdata=Libro1, type="raw")
+y_pred
+datos_memoria$APPN[Datos_Memoria$APPN2==0] <- "Y"
+datos_memoria$APPN[Datos_Memoria$APPN2==1] <- "N"
+tblypred<-table(Datos_Memoria$APPN2,y_pred)
+tblypred
+sum(tblypred[row(tblypred)==col(tblypred)])/sum(tblypred)
+#Si se desea la probabilidad de aprobacion/reprobacion de cada alumno
+y_pred<-predict(logreg_fit2, newdata=Libro1, type="prob")
+y_pred
+
+
+#ModP3
+Datos_Memoria <- read_excel("~/Memoria/Datos Memoria.xlsx",  sheet = "ModP1-P5")
+Datos_Memoria$APPN2[Datos_Memoria$APPN2=="N"] <-1
+Datos_Memoria$APPN2[Datos_Memoria$APPN2=="Y"] <-0
+attach(Datos_Memoria)
+
+#Inutilidad de las Variables 
+progr<-Datos_Memoria[,c(2:5,7:9,10:15)]
+progr1<-Datos_Memoria[,c(2:5,8:10,11:14)]
+progr1$APPN2<-as.numeric(progr1$APPN2)
+str(progr1)
+sapply(progr1,sd)
+#Redundancia de las Variables (solo las predictoras)
+CorrMat<-cor(progr1)
+corrplot.mixed(CorrMat)
+
+#Remover variables irrelevantes: test Chi2, decidir sobre redundantes (predictoras con dependiente).
+tbl2 = table(progr1$NVM1P3,Datos_Memoria$APPN3) 
+chisq.test(tbl2)
+
+#Para que funcione se asigna Y=0 (Aprobado) e N=1 (Reprobado)
+data_set$APP1[data_set$APP1==0] <- "Y"
+data_set$APP1[data_set$APP1==1] <- "N"
+data_set1<-data.frame(LAB11,LAB21,PSUL,PSUR,APRC,LAB12,LAB22,NVM1P2,APPN2,LAB13,LAB23,APPN3)
+attach(data_set1)
+str(data_set1)
+
+#CV Using 10-fold validation
+ctrl<-trainControl(method="cv",number= 10, summaryFunction=twoClassSummary, classProbs = TRUE) 
+
+#Regresion L
+logreg_fit<-train(APPN3 ~., data = data_set1, method="glm", family="binomial", trControl = ctrl, metric="ROC")
+logreg_fit
+summary(logreg_fit)
+logreg_fit2<-train(APPN3 ~ LAB12+LAB13+APPN2, data = data_set1, method="glm", family="binomial", trControl = ctrl, metric="ROC")
+logreg_fit2
+summary(logreg_fit2)
+
+#Residuos de Estimaciones
+plot(logreg_fit2$finalModel$residuals)
+#Analisis de Probabilidades de los Coeficientes
+logit2prob <- function(logit){
+  ratio1 <- exp(logit) 
+  return(ratio1)
+}
+coefi<-logreg_fit2$finalModel$coefficients
+logit2prob(coefi)
+
+#SVM
+SVM_fitL<-train(APPN3 ~ ., data = data_set1, trControl = ctrl ,method = "svmLinear")
+SVM_fitL
+SVM_fitL2<-train(APPN3 ~ LAB12+LAB13+APPN2 , data = data_set1, trControl = ctrl ,method = "svmLinear")
+SVM_fitL2
+SVM_fitR<-train(APPN3 ~ ., data = data_set1, trControl = ctrl, method = "svmRadial")
+SVM_fitR
+SVM_fitR2<-train(APPN3 ~ LAB12+LAB13+APPN2, data = data_set1, trControl = ctrl, method = "svmRadial")
+SVM_fitR2
+plot(SVM_fitR)
+
+#NB
+nb_fit<-train(APPN3 ~ ., data = data_set1, method = "nb", trControl = ctrl, metric="ROC")
+nb_fit
+nb_fit2<-train(APPN3 ~ LAB12+LAB13+APPN2, data = data_set1, method = "nb", trControl = ctrl, metric="ROC")
+nb_fit2
+
+#Graficar Resultados
+results <- resamples(list(LOGIT=logreg_fit, LOGIT2=logreg_fit2,NB=nb_fit,NB2=nb_fit2, SVML=SVM_fitL,SVML2=SVM_fitL2, SVMR=SVM_fitR,SVMR2=SVM_fitR2))
+summary(results)
+#Boxplots con resultados
+bwplot(results)
+#Dot plots de resultados con 95% Confianza
+dotplot(results)
+
+#Prediccion
+Libro1 <- read_excel("~/Memoria/Datos Memoria.xlsx", sheet = "ModP1-P5")
+attach(Libro1)
+#Si se desea obtener la predicci??n nueva o comparar lo estimado con lo real, el m??todo por defecto es LG restringido, se puede aplicar cualquieray_pred<-predict(logreg_fit2, newdata=Libro1, type="raw")
+y_pred
+datos_memoria$APPN[Datos_Memoria$APPN3==0] <- "Y"
+datos_memoria$APPN[Datos_Memoria$APPN3==1] <- "N"
+tblypred<-table(Datos_Memoria$APPN3,y_pred)
+tblypred
+sum(tblypred[row(tblypred)==col(tblypred)])/sum(tblypred)
+#Si se desea la probabilidad de aprobacion/reprobacion de cada alumno
+y_pred<-predict(logreg_fit2, newdata=Libro1, type="prob")
+y_pred
+
+#ModP4
+Datos_Memoria <- read_excel("~/Memoria/Datos Memoria.xlsx",  sheet = "ModP1-P5")
+Datos_Memoria$APPN[Datos_Memoria$APPN=="N"] <-1
+Datos_Memoria$APPN[Datos_Memoria$APPN=="Y"] <-0
+Datos_Memoria$APPN2[Datos_Memoria$APPN2=="N"] <-1
+Datos_Memoria$APPN2[Datos_Memoria$APPN2=="Y"] <-0
+Datos_Memoria$APPN3[Datos_Memoria$APPN3=="N"] <-1
+Datos_Memoria$APPN3[Datos_Memoria$APPN3=="Y"] <-0
+attach(Datos_Memoria)
+
+#Inutilidad de las Variables 
+progr<-Datos_Memoria[,c(2:5,7:9,10:17)]
+progr1<-Datos_Memoria[,c(2:5,8:10,11:17)]
+progr1$APPN2<-as.numeric(progr1$APPN2)
+progr1$APPN3<-as.numeric(progr1$APPN3)
+str(progr)
+sapply(progr,sd)
+
+#Redundancia de las Variables (solo las predictoras)
+CorrMat<-cor(progr1)
+corrplot.mixed(CorrMat)
+
+#Inutilidad de variables
+bins<-5
+cutpoints<-quantile(progr1$LAB11,(0:bins)/bins)
+Lab14B<-cut(progr$LAB14,cutpoints,include.lowest=TRUE)
+Lab24B<-cut(progr$LAB24,cutpoints,include.lowest=TRUE)
+tbl = table(Lab14B,Datos_Memoria$APPN4) 
+tbl1 = table(Lab24B,Datos_Memoria$APPN4) 
+chisq.test(tbl) 
+chisq.test(tbl1)
+
+#Para que funcione se asigna Y=0 (Aprobado) e N=1 (Reprobado)
+data_set$APP1[data_set$APP1==0] <- "Y"
+data_set$APP1[data_set$APP1==1] <- "N"
+data_set1<-data.frame(LAB11,LAB21,PSUL,PSUR,APPN,LAB12,LAB22,NVM1P2,APPN2,LAB13,LAB23,APPN3,LAB14,LAB24,APPN4)
+attach(data_set1)
+str(data_set1)
+
+#CV Using 10-fold validation
+ctrl<-trainControl(method="cv",number= 10, summaryFunction=twoClassSummary, classProbs = TRUE) 
+
+#Regresion L
+logreg_fit<-train(APPN4 ~., data = data_set1, method="glm", family="binomial", trControl = ctrl, metric="ROC")
+logreg_fit
+summary(logreg_fit)
+logreg_fit2<-train(APPN4 ~ NVM1P2+LAB23+LAB14+LAB24, data = data_set1, method="glm", family="binomial", trControl = ctrl, metric="ROC")
+logreg_fit2
+summary(logreg_fit2)
+
+#Residuos de Estimaciones
+plot(logreg_fit2$finalModel$residuals)
+
+#Analisis de Probabilidades de los Coeficientes
+logit2prob <- function(logit){
+  ratio1 <- exp(logit) 
+  return(ratio1)
+}
+coefi<-logreg_fit$finalModel$coefficients
+logit2prob(coefi)
+
+#SVM
+SVM_fitL<-train(APPN4 ~ ., data = data_set1, trControl = ctrl ,method = "svmLinear")
+SVM_fitL
+SVM_fitL2<-train(APPN4 ~ NVM1P2+LAB23+LAB14+LAB24 , data = data_set1, trControl = ctrl ,method = "svmLinear")
+SVM_fitL2
+SVM_fitR<-train(APPN4 ~ ., data = data_set1, trControl = ctrl, method = "svmRadial")
+SVM_fitR
+SVM_fitR2<-train(APPN4 ~ NVM1P2+LAB23+LAB14+LAB24, data = data_set1, trControl = ctrl, method = "svmRadial")
+SVM_fitR2
+plot(SVM_fitR)
+
+#NB
+nb_fit<-train(APPN4 ~ ., data = data_set1, method = "nb", trControl = ctrl, metric="ROC")
+nb_fit
+nb_fit2<-train(APPN4 ~ NVM1P2+LAB23+LAB14+LAB24, data = data_set1, method = "nb", trControl = ctrl, metric="ROC")
+nb_fit2
+
+#Graficar Resultados
+results <- resamples(list(LOGIT=logreg_fit, LOGIT2=logreg_fit2,NB=nb_fit,NB2=nb_fit2, SVML=SVM_fitL,SVML2=SVM_fitL2, SVMR=SVM_fitR,SVMR2=SVM_fitR2))
+summary(results)
+#Boxplots con resultados
+bwplot(results)
+#Dot plots de resultados con 95% Confianza
+dotplot(results)
+
+#Prediccion
+Libro1 <- read_excel("~/Memoria/Datos Memoria.xlsx", sheet = "ModP1-P5")
+attach(Libro1)
+#Si se desea obtener la predicci??n nueva o comparar lo estimado con lo real, el m??todo por defecto es LG restringido, se puede aplicar cualquiera
+y_pred<-predict(logreg_fit2, newdata=Libro1, type="raw")
+y_pred
+datos_memoria$APPN[Datos_Memoria$APPN4==0] <- "Y"
+datos_memoria$APPN[Datos_Memoria$APPN4==1] <- "N"
+tblypred<-table(Datos_Memoria$APPN4,y_pred)
+tblypred
+sum(tblypred[row(tblypred)==col(tblypred)])/sum(tblypred)
+#Si se desea la probabilidad de aprobacion/reprobacion de cada alumno
+y_pred<-predict(logreg_fit2, newdata=Libro1, type="prob")
+y_pred
+
+
+#ModP5
+Datos_Memoria <- read_excel("~/Memoria/Datos Memoria.xlsx",  sheet = "ModP1-P5")
+Datos_Memoria$APPN[Datos_Memoria$APPN=="N"] <-1
+Datos_Memoria$APPN[Datos_Memoria$APPN=="Y"] <-0
+Datos_Memoria$APPN2[Datos_Memoria$APPN2=="N"] <-1
+Datos_Memoria$APPN2[Datos_Memoria$APPN2=="Y"] <-0
+Datos_Memoria$APPN3[Datos_Memoria$APPN3=="N"] <-1
+Datos_Memoria$APPN3[Datos_Memoria$APPN3=="Y"] <-0
+Datos_Memoria$APPN4[Datos_Memoria$APPN4=="N"] <-1
+Datos_Memoria$APPN4[Datos_Memoria$APPN4=="Y"] <-0
+attach(Datos_Memoria)
+
+#Inutilidad de las Variables 
+progr<-Datos_Memoria[,c(2:5,7:9,10:20)]
+progr1<-Datos_Memoria[,c(2:5,8:10,11:20)]
+progr1$APPN2<-as.numeric(progr1$APPN2)
+progr1$APPN3<-as.numeric(progr1$APPN3)
+progr1$APPN4<-as.numeric(progr1$APPN4)
+str(progr1)
+sapply(progr1,sd)
+
+#Redundancia de las Variables (solo las predictoras)
+CorrMat<-cor(progr1)
+corrplot.mixed(CorrMat)
+
+#Inutilidad de variables
+bins<-5
+cutpoints<-quantile(progr1$LAB11,(0:bins)/bins)
+Lab15B<-cut(progr$LAB15,cutpoints,include.lowest=TRUE)
+Lab25B<-cut(progr$LAB25,cutpoints,include.lowest=TRUE)
+tbl = table(Lab15B,Datos_Memoria$APPN5) 
+tbl1 = table(Lab25B,Datos_Memoria$APPN5) 
+chisq.test(tbl) 
+chisq.test(tbl1)
+
+#Para que funcione se asigna Y=0 (Aprobado) e N=1 (Reprobado)
+data_set$APP1[data_set$APP1==0] <- "Y"
+data_set$APP1[data_set$APP1==1] <- "N"
+data_set1<-data.frame(LAB11,LAB21,PSUL,PSUR,APPN,LAB12,LAB22,NVM1P2,APPN2,LAB13,LAB23,APPN3,LAB14,LAB24,APPN4,LAB15,LAB25,APPN5)
+attach(data_set1)
+str(data_set1)
+
+#CV Using 10-fold validation
+ctrl<-trainControl(method="cv",number= 10, summaryFunction=twoClassSummary, classProbs = TRUE) 
+
+#Regresion L
+logreg_fit<-train(APPN5 ~., data = data_set1, method="glm", family="binomial", trControl = ctrl, metric="ROC")
+logreg_fit
+summary(logreg_fit)
+logreg_fit2<-train(APPN5 ~ PSUR+NVM1P2+APPN4+LAB15, data = data_set1, method="glm", family="binomial", trControl = ctrl, metric="ROC")
+logreg_fit2
+summary(logreg_fit2)
+
+#Residuos de Estimaciones
+plot(logreg_fit2$finalModel$residuals)
+
+#Analisis de Probabilidades de los Coeficientes
+logit2prob <- function(logit){
+  ratio1 <- exp(logit) 
+  return(ratio1)
+}
+coefi<-logreg_fit2$finalModel$coefficients
+logit2prob(coefi)
+
+#SVM
+SVM_fitL<-train(APPN5 ~ ., data = data_set1, trControl = ctrl ,method = "svmLinear")
+SVM_fitL
+SVM_fitL2<-train(APPN5 ~ PSUR+NVM1P2+APPN4+LAB15, data = data_set1, trControl = ctrl ,method = "svmLinear")
+SVM_fitL2
+SVM_fitR<-train(APPN5 ~ ., data = data_set1, trControl = ctrl, method = "svmRadial")
+SVM_fitR
+SVM_fitR2<-train(APPN5 ~ PSUR+NVM1P2+APPN4+LAB15, data = data_set1, trControl = ctrl, method = "svmRadial")
+SVM_fitR2
+plot(SVM_fitR)
+
+#NB
+nb_fit<-train(APPN5 ~ ., data = data_set1, method = "nb", trControl = ctrl, metric="ROC")
+nb_fit
+nb_fit2<-train(APPN5 ~ PSUR+NVM1P2+APPN4+LAB15, data = data_set1, method = "nb", trControl = ctrl, metric="ROC")
+nb_fit2
+
+#Graficar Resultados
+results <- resamples(list(LOGIT=logreg_fit, LOGIT2=logreg_fit2,NB=nb_fit,NB2=nb_fit2, SVML=SVM_fitL,SVML2=SVM_fitL2, SVMR=SVM_fitR,SVMR2=SVM_fitR2))
+summary(results)
+#Boxplots con resultados
+bwplot(results)
+#Dot plots de resultados con 95% Confianza
+dotplot(results)
+
+#Prediccion
+Libro1 <- read_excel("~/Memoria/Datos Memoria.xlsx", sheet = "ModP1-P5")
+attach(Libro1)
+#Si se desea obtener la predicci??n nueva o comparar lo estimado con lo real, el m??todo por defecto es LG restringido, se puede aplicar cualquiera
+y_pred<-predict(logreg_fit2, newdata=Libro1, type="raw")
+y_pred
+datos_memoria$APPN[Datos_Memoria$APPN5==0] <- "Y"
+datos_memoria$APPN[Datos_Memoria$APPN5==1] <- "N"
+tblypred<-table(Datos_Memoria$APPN5,y_pred)
+tblypred
+sum(tblypred[row(tblypred)==col(tblypred)])/sum(tblypred)
+#Si se desea la probabilidad de aprobacion/reprobacion de cada alumno
+y_pred<-predict(logreg_fit2, newdata=Libro1, type="prob")
+y_pred
+
+
+
+#Datos Tecnicos: MacBookPro mid 2012 13-inch.2,9 GHz Intel Core i7.2 GB 1333 MHz DDR3.
+#Intel HD Graphics 4000 1536 MB, SSD 256GB SATA 2.5.mac OS Sierra.
+
+

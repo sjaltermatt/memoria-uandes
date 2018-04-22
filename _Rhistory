@@ -1,0 +1,90 @@
+library("ltm")
+library("readxl")
+library("lavaan")
+install.packages("mice")
+library("mice")
+getwd()
+eodata<- read_excel("C:/Users/memorista/Desktop/memoria-uandes-master/XLSX/eodata.xlsx",sheet="EO")
+eodata<- read_excel("C:/Users/memorista/Desktop/memoria-uandes-master/XLSX/eodata.xlsx",sheet="EO")
+eodata<- read_excel("/Users/memorista/Desktop/memoria-uandes-master/XLSX/eodata.xlsx",sheet="EO")
+library("VIM")
+install.packages("VIM")
+library.packages("VIM")
+library("VIM")
+install.packages("VIM")
+?mice
+str(eodata)
+md.pattern(eodata)
+methods(mice)
+mice_imputes = mice(eodata, m=5, method='polr',maxit = 40)
+str(eodata)
+?apply
+eodata_f= apply(eodata, 2, function(x) as.numeric(as.character(x)))
+View(eodata_f)
+eodata_f= apply(eodata, 2, function(x) as.factor(x))
+View(eodata_f)
+eodata_f= apply(eodata, 2, function(x) as.factor(as.numeric(x)))
+mice_imputes = mice(eodata_f, m=5, method='polr',maxit = 40)
+mice_imputes$imp$E15
+mice_imputes$imp$E19
+mice_imputes$imp$E39
+mice_imputes$method
+eodata_c = complete(mice_imputes,1)
+eodata = complete(mice_imputes,1)
+eo_error_competence <- data.frame(eodata$E2, eodata$E7, eodata$E31, eodata$E33)
+cronbach.alpha(eo_error_competence, standardized = FALSE, CI = FALSE)
+eo_error_competence <- data.frame(eodata$E2, eodata$E7, eodata$E31, eodata$E33)
+eo_learning_from_errors <- data.frame(eodata$E21, eodata$E28, eodata$E22, eodata$E3)
+eo_risk_taking <- data.frame(eodata$E34, eodata$E13, eodata$E6, eodata$E27)
+eo_strain <- data.frame(eodata$E17, eodata$E18, eodata$E38, eodata$E10, eodata$E5)
+eo_anticipation <- data.frame(eodata$E30, eodata$E37, eodata$E19, eodata$E25, eodata$E9)
+eo_cover_error <- data.frame(eodata$E15, eodata$E8, eodata$E24, eodata$E26, eodata$E11, eodata$E14)
+eo_communication <- data.frame(eodata$E36, eodata$E32, eodata$E29, eodata$E4)
+eo_thinking_abot <- data.frame(eodata$E12, eodata$E16, eodata$E39, eodata$E1, eodata$E23)
+cronbach.alpha(eo_learning_from_errors, standardized = FALSE, CI = FALSE)
+cronbach.alpha(eo_risk_taking, standardized = FALSE, CI = FALSE)
+cronbach.alpha(eo_strain, standardized = FALSE, CI = FALSE)
+cronbach.alpha(eo_anticipation, standardized = FALSE, CI = FALSE)
+cronbach.alpha(eo_cover_error, standardized = FALSE, CI = FALSE)
+cronbach.alpha(eo_cover_error, standardized = FALSE, CI = FALSE)
+cronbach.alpha(eo_communication, standardized = FALSE, CI = FALSE)
+cronbach.alpha(eo_thinking_abot, standardized = FALSE, CI = FALSE)
+getwd()
+sgsdata<- read_excel("/Users/memorista/Desktop/memoria-uandes-master/XLSX/sgs.xlsx",sheet="SGS")
+md.pattern(sgsdata)
+sgsdata<- data.frame(sgsdata$S1,sgsdata$S2,sgsdata$S3,sgsdata$S4,sgsdata$S5,sgsdata$S6,sgsdata$S7,sgsdata$S8,sgsdata$S9,sgsdata$S10,sgsdata$S11,sgsdata$S12,sgsdata$S13)
+md.pattern(sgsdata)
+sgsdata<- read_excel("/Users/memorista/Desktop/memoria-uandes-master/XLSX/sgs.xlsx",sheet="SGS")
+sgsdata<- data.frame(sgsdata$S1,sgsdata$S2,sgsdata$S3,sgsdata$S4,sgsdata$S5,sgsdata$S6,sgsdata$S7,sgsdata$S8,sgsdata$S9,sgsdata$S10,sgsdata$S11,sgsdata$S12,sgsdata$S13)
+md.pattern(sgsdata)
+sgsdata_f= apply(sgsdata, 2, function(x) as.factor(as.numeric(x)))
+mice_imputes = mice(sgsdata_f, m=5, method='polr',maxit = 40)
+mice_imputes$imp$S13
+mice_imputes$imp$S13
+mice_imputes
+mice_imputes = mice(eodata_f, m=5, method='polr',maxit = 40)
+mice_imputes
+mice_imputes = mice(sgsdata_f, m=5, method='polr',maxit = 40)
+mice_imputes
+mice_imputes$imp$S13
+mice_imputes$method
+sgsdata
+sgsdata<- read_excel("/Users/memorista/Desktop/memoria-uandes-master/XLSX/sgs.xlsx",sheet="SGS")
+mice_imputes = mice(sgsdata_f, m=5, method='polr',maxit = 40)
+mice_imputes$imp$S13
+mice_imputes$imp$sgsdata.S13
+sgsdata_c = complete(mice_imputes,1)
+sgsdata = complete(mice_imputes,1)
+sgs_consistency <- data.frame(sgsdata$S5, sgsdata$S2, sgsdata$S1, sgsdata$S4, sgsdata$S7, sgsdata$S13)
+sgs_effort <- data.frame(sgsdata$S12, sgsdata$S11, sgsdata$S3, sgsdata$S8, sgsdata$S6, sgsdata$S9)
+cronbach.alpha(sgs_consistency, standardized = FALSE, CI = FALSE)
+cronbach.alpha(sgs_effort, standardized = FALSE, CI = FALSE)
+sgs_consistency
+sgs_consistency <- data.frame(sgsdata$S5, sgsdata$S2, sgsdata$S1, sgsdata$S4, sgsdata$S7, sgsdata$S13)
+sgs_consistency <- data.frame(sgsdata$S5, sgsdata$S2, sgsdata$S1, sgsdata$S4, sgsdata$S7, sgsdata$S13)
+sgs_consistency
+sgsdata
+sgs_consistency <- data.frame(sgsdata$sgsdata.S5, sgsdata$sgsdata.S2, sgsdata$sgsdata.S1, sgsdata$sgsdata.S4, sgsdata$sgsdata.S7, sgsdata$sgsdata.S13)
+sgs_effort <- data.frame(sgsdata$sgsdata.S12, sgsdata$sgsdata.S11, sgsdata$sgsdata.S3, sgsdata$sgsdata.S8, sgsdata$sgsdata.S6, sgsdata$sgsdata.S9)
+cronbach.alpha(sgs_consistency, standardized = FALSE, CI = FALSE)
+cronbach.alpha(sgs_effort, standardized = FALSE, CI = FALSE)
