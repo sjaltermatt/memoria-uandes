@@ -26,7 +26,7 @@ mice_imputes$imp$E15
 mice_imputes$method
 # Como los imputed data  are equals in each observation, we dont need to decide which imputed data set we will use
 # si fuera otro el caso, se haria test de bondad de ajustes para poder decidir el mejor escenario
-eodata_c = complete(mice_imputes,1)
+eodata = complete(mice_imputes,1)
 
 # Se crean los data frame correspondientes a cada factor de EO
 eo_error_competence <- data.frame(eodata$E2, eodata$E7, eodata$E31, eodata$E33)
@@ -65,7 +65,7 @@ md.pattern(sgsdata)
 
 # Pasando todo a factor para el analisis mediante el metodo polr
 sgsdata_f= apply(sgsdata, 2, function(x) as.factor(as.numeric(x)))
-mice_imputes = mice(sgsdata_f, m=5, method='polr', maxit = 40)
+
 
 # Codigo para observar los imputs elegidos para cada observacion en una variable dada (S13 en este caso)
 mice_imputes$imp$sgsdata.S13
@@ -111,7 +111,7 @@ mice_imputes$method
 
 # Como los imputed data are equals in each observation, we dont need to decide which imputed data set we will use
 # si fuera otro el caso, se haria test de bondad de ajustes para poder decidir el mejor escenario
-ritidata_c = complete(mice_imputes,1)
+ritidata = complete(mice_imputes,1)
 
 # Se crean los data frame correspondientes a cada factor de SGS
 riti_EBG <- data.frame(ritidata$R04, ritidata$R10, ritidata$R01, ritidata$R16)
@@ -124,5 +124,21 @@ cronbach.alpha(riti_EBG, standardized = FALSE, CI = FALSE)
 cronbach.alpha(riti_IBG, standardized = FALSE, CI = FALSE)
 cronbach.alpha(riti_EBS, standardized = FALSE, CI = FALSE)
 cronbach.alpha(riti_IBS, standardized = FALSE, CI = FALSE)
+
+
+
+#Se crean los modelos Lavaan para riti
+riti.gmodel<- 'EBG =~ R04 + R10 + R01 + R16
++ IBG=~R02 + R07 + R13 + R09'
+riti.smodel<- 'EBS=~ R12 + R05 + R11 + R06
++ IBS=~ R17 + R08 + R14 + R03'
+
+ritidata_f= apply(ritidata, 2, function(x) as.numeric(as.factor(x)))
+fit <- cfa(riti.gmodel, data=ritidata_f)
+
+parTable(fit)
+
+summary(fit, fit.measures=TRUE)
+fitmeasures(fit)
 
 
